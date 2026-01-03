@@ -1,0 +1,61 @@
+{
+  "personality_profile": {
+    "raw_scores": {
+      "methodical": 2,
+      "analytical": 2,
+      "leadership": 2,
+      "assertive": 1,
+      "dynamic": 2,
+      "flexible": 1,
+      "detail-oriented": 2,
+      "practical": 2,
+      "enthusiastic": 2,
+      "energetic": 1,
+      "hands-on": 2,
+      "problem-solver": 2,
+      "balanced": 2,
+      "self-aware": 1,
+      "intuitive": 2,
+      "decisive": 1,
+      "ambitious": 2,
+      "growth-oriented": 1
+    },
+    "top_traits": [
+      [
+        "methodical",
+        2
+      ],
+      [
+        "analytical",
+        2
+      ],
+      [
+        "leadership",
+        2
+      ],
+      [
+        "dynamic",
+        2
+      ],
+      [
+        "detail-oriented",
+        2
+      ]
+    ],
+    "communication_style": "detailed and thorough",
+    "work_style": "flexible and adaptable",
+    "motivation_style": "making a positive impact"
+  },
+  "responses": {
+    "1": "a",
+    "2": "a",
+    "3": "b",
+    "4": "c",
+    "5": "c",
+    "6": "b",
+    "7": "c",
+    "8": "c",
+    "9": "a",
+    "10": "a"
+  }
+}

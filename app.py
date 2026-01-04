@@ -2,6 +2,19 @@
 Streamlit Career Coach Application
 Web interface for CV analysis with multiple input methods.
 """
+import streamlit as st
+import sys
+
+# Catch startup errors and show them on the screen
+try:
+    # YOUR ENTIRE APP CODE GOES HERE
+    st.set_page_config(page_title="Mentor")
+    st.write("App is starting...")
+    # ... the rest of your imports and logic ...
+    
+except Exception as e:
+    st.error(f"Startup Error: {e}")
+    st.exception(e)
 
 import streamlit as st
 import io
@@ -31,7 +44,15 @@ import streamlit_authenticator as stauth
 from datetime import datetime
 from supabase import create_client, Client
 
-
+# IMPORTANT: st.set_page_config must be the first Streamlit command
+try:
+    st.set_page_config(
+        page_title="Career Coach - CV Analyser",
+        page_icon="💼",
+        layout="wide"
+    )
+except Exception as e:
+    pass
 
 def extract_text_from_pdf(uploaded_file) -> str:
     """Extract text from uploaded PDF file."""
@@ -993,43 +1014,36 @@ def setup_authentication():
 
 def main():
     """Main Streamlit application."""
-        
-    # IMPORTANT: st.set_page_config must be the first Streamlit command
-    try:
-        st.set_page_config(
-            page_title="Career Coach - CV Analyser",
-            page_icon="💼",
-            layout="wide"
-        )
-    except Exception as e:
-        pass
     
     # Set up authentication
     authenticator = setup_authentication()
     
     # Check if user is already authenticated via session state (for manual login)
     if 'authenticated' in st.session_state and st.session_state.get('authenticated') == True:
-                # User is authenticated via session state, proceed to app
+        # User is authenticated via session state, proceed to app
         name = st.session_state.get('name', 'User')
         username = st.session_state.get('username', 'user')
         authentication_status = True
-        login_result = (name, authentication_status, username)
     else:
-        # Check authentication
-        # First try 'unrendered' to check if already authenticated
+        # Try authenticator login - location must be 'main', 'sidebar', or 'unrendered'
         try:
-            login_result = authenticator.login(location='unrendered', key='LoginCheck')
-        except Exception as login_error:
-            error_str = str(login_error)
-            if "User not authorized" in error_str:
-                login_result = None
-            else:
-                login_result = None
+            if st.session_state.get('reload_auth', False):
+                authenticator = setup_authentication()
+                st.session_state['reload_auth'] = False
             
-    if login_result is None:
+            name, authentication_status, username = authenticator.login(location='main')
+        except Exception as e:
+            # If authenticator fails, show fallback login form
+            authentication_status = None
+            name = None
+            username = None
+    
+    # If not authenticated, show login page
+    if not authentication_status:
         st.title("💼 Career Coach - Login")
         st.markdown("Please log in to access the Career Coach application.")
         
+        # Registration section
         with st.expander("New User? Register Here"):
             try:
                 supabase = get_supabase_client()
@@ -1062,77 +1076,39 @@ def main():
             except Exception as e:
                 st.error(f"Registration error: {str(e)}")
         
-        login_form_error = False
-        try:
-            if st.session_state.get('reload_auth', False):
-                authenticator = setup_authentication()
-                st.session_state['reload_auth'] = False
+        # Fallback login form (shown if authenticator fails or for manual login)
+        st.markdown("---")
+        st.write("**Please log in:**")
+        with st.form("login_form", clear_on_submit=False):
+            username_input = st.text_input("Username", key="fallback_username")
+            password_input = st.text_input("Password", type="password", key="fallback_password")
+            submit_button = st.form_submit_button("Login", type="primary", use_container_width=True)
             
-            try:
-                authenticator.login(
-                    location='main', 
-                    key='LoginForm',
-                    fields={'Form name': 'Login', 'Username': 'Username', 'Password': 'Password'}
-                )
-            except (TypeError, ValueError):
-                authenticator.login(location='main', key='LoginForm')
-        except Exception as e:
-            error_str = str(e)
-            login_form_error = True
-            if "User not authorized" not in error_str:
-                st.error(f"Authenticator error: {error_str}")
-        
-        if login_form_error:
-            st.markdown("---")
-            st.write("**Please log in:**")
-            with st.form("login_form", clear_on_submit=False):
-                username_input = st.text_input("Username", key="fallback_username")
-                password_input = st.text_input("Password", type="password", key="fallback_password")
-                submit_button = st.form_submit_button("Login", type="primary", use_container_width=True)
+            if submit_button:
+                supabase = get_supabase_client()
+                is_authenticated, user_data = authenticate_user_from_database(supabase, username_input, password_input)
                 
-                if submit_button:
-                    supabase = get_supabase_client()
-                    is_authenticated, user_data = authenticate_user_from_database(supabase, username_input, password_input)
-                    
-                    if is_authenticated and user_data:
-                        st.session_state['authenticated'] = True
-                        st.session_state['name'] = user_data['name']
-                        st.session_state['username'] = user_data['username']
-                        st.session_state['user_email'] = user_data['email']
-                        st.rerun()
-                        return  # Prevent further execution after rerun
-                    else:
-                        st.error("Invalid username or password")
+                if is_authenticated and user_data:
+                    st.session_state['authenticated'] = True
+                    st.session_state['name'] = user_data['name']
+                    st.session_state['username'] = user_data['username']
+                    st.session_state['user_email'] = user_data['email']
+                    st.rerun()
+                    return  # Prevent further execution after rerun
+                else:
+                    st.error("Invalid username or password")
         
         st.stop()
+        return
     
-    # Unpack the result - login_result is a tuple (name, authentication_status, username)
-    name, authentication_status, username = login_result
-    
-    # Get user email from database and store in session state for privacy filtering
-    if authentication_status == True:
+    # User is authenticated - get user email from database and store in session state for privacy filtering
+    if authentication_status:
         supabase = get_supabase_client()
         user_email = get_user_email_from_database(supabase, username)
         st.session_state['user_email'] = user_email
-        
-    # Check authentication status
-    if authentication_status == True:
-        # User is successfully authenticated - proceed to show the app
-                pass  # Continue execution below
-    elif authentication_status == False:
-        # Login failed - show error and login form again
-        st.error('Username/password is incorrect')
-        authenticator.login(location='main', key='LoginFormRetry')
-        st.stop()
-        return
-    else:
-        # authentication_status is None or other value - show login form
-        authenticator.login(location='main', key='LoginForm')
-        st.stop()
-        return
     
     # User is authenticated - show the app
-        # Add logout button and Application History in sidebar
+    # Add logout button and Application History in sidebar
     with st.sidebar:
         st.write(f'Welcome *{name}*')
         

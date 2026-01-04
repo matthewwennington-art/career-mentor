@@ -1421,15 +1421,46 @@ def render_analysis_tabs(gemini_analysis, company_research=None, cover_letter_te
 def main():
     """Main Streamlit application."""
     
+    # #region agent log
+    try:
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"app.py:1421","message":"Main function start","data":{"has_authenticated_key":"authenticated" in st.session_state,"authenticated_value":st.session_state.get('authenticated'),"has_auth_status_key":"authentication_status" in st.session_state,"auth_status_value":st.session_state.get('authentication_status')},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+    except: pass
+    # #endregion
+    
     # Set up authentication
     authenticator = setup_authentication()
     
     # Check if user is already authenticated via session state (for manual login)
-    if 'authenticated' in st.session_state and st.session_state.get('authenticated') == True:
+    # This check must come FIRST to prevent authenticator.login from overwriting manual auth
+    # Check both 'authenticated' key and 'authentication_status' to handle all cases
+    # This prevents authenticator.login() from overwriting manual authentication
+    if ('authenticated' in st.session_state and st.session_state.get('authenticated') == True) or \
+       (st.session_state.get('authentication_status') == True):
         # User is authenticated via session state, proceed to app
-        name = st.session_state.get('name', 'User')
-        username = st.session_state.get('username', 'user')
+        name = st.session_state.get('name')
+        username = st.session_state.get('username')
+        
+        # If name/username are missing, use defaults (shouldn't happen but safety check)
+        if not name:
+            name = st.session_state.get('name', 'User')
+        if not username:
+            username = st.session_state.get('username', 'user')
+        
         authentication_status = True
+        # Ensure both flags are set for consistency
+        st.session_state['authenticated'] = True
+        st.session_state['name'] = name
+        st.session_state['username'] = username
+        # #region agent log
+        try:
+            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"app.py:1438","message":"Session state auth path","data":{"name":name,"username":username,"has_authenticated_key":"authenticated" in st.session_state,"has_auth_status_key":"authentication_status" in st.session_state},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+        except: pass
+        # #endregion
     else:
         # Try authenticator login - location must be 'main', 'sidebar', or 'unrendered'
         # Keep this call simple and outside complex logic
@@ -1439,19 +1470,56 @@ def main():
                 st.session_state['reload_auth'] = False
             
             name, authentication_status, username = authenticator.login(location='main')
+            # #region agent log
+            try:
+                log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1451","message":"Authenticator login result","data":{"name":name if name else None,"authentication_status":authentication_status,"username":username if username else None},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+            except: pass
+            # #endregion
         except Exception as e:
             # If authenticator fails, show fallback login form
             authentication_status = None
             name = None
             username = None
+            # #region agent log
+            try:
+                log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1452","message":"Authenticator login exception","data":{"error":str(e)},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+            except: pass
+            # #endregion
     
     # Store authentication_status in session state
     was_authenticated = st.session_state.get('authentication_status', False)
     st.session_state['authentication_status'] = authentication_status
     
+    # #region agent log
+    try:
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"app.py:1450","message":"Auth status check","data":{"was_authenticated":was_authenticated,"authentication_status":authentication_status,"will_rerun":authentication_status and not was_authenticated},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+    except: pass
+    # #endregion
+    
     # If authentication_status just became True, rerun to refresh the page
     if authentication_status and not was_authenticated:
+        # #region agent log
+        try:
+            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"app.py:1454","message":"Triggering rerun after auth","data":{},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+        except: pass
+        # #endregion
         st.rerun()
+    
+    # #region agent log
+    try:
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"app.py:1457","message":"Checking if authenticated","data":{"authentication_status":authentication_status,"not_auth":not authentication_status},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+    except: pass
+    # #endregion
     
     # If not authenticated, show login page
     if not authentication_status:
@@ -1508,6 +1576,14 @@ def main():
                     st.session_state['name'] = user_data['name']
                     st.session_state['username'] = user_data['username']
                     st.session_state['user_email'] = user_data['email']
+                    st.session_state['authentication_status'] = True  # Also set this for consistency
+                    # #region agent log
+                    try:
+                        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+                        with open(log_path, 'a', encoding='utf-8') as f:
+                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"app.py:1511","message":"Fallback login success, setting session state","data":{"name":user_data.get('name'),"username":user_data.get('username'),"email":user_data.get('email')},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+                    except: pass
+                    # #endregion
                     st.rerun()
                     return  # Prevent further execution after rerun
                 else:
@@ -1515,6 +1591,14 @@ def main():
         
         st.stop()
         return
+    
+    # #region agent log
+    try:
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"app.py:1521","message":"Checking auth status for main app","data":{"auth_status_in_session":st.session_state.get('authentication_status'),"has_name":name is not None,"has_username":username is not None},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+    except: pass
+    # #endregion
     
     # User is authenticated - show the app
     # Wrap entire logged-in UI in authentication check

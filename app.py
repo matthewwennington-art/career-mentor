@@ -1007,7 +1007,6 @@ def main():
     # Set up authentication
     authenticator = setup_authentication()
     
-        
     # Check if user is already authenticated via session state (for manual login)
     if 'authenticated' in st.session_state and st.session_state.get('authenticated') == True:
                 # User is authenticated via session state, proceed to app
@@ -1026,7 +1025,6 @@ def main():
                 login_result = None
             else:
                 login_result = None
-        
             
     if login_result is None:
         st.title("💼 Career Coach - Login")
@@ -1102,6 +1100,7 @@ def main():
                         st.session_state['username'] = user_data['username']
                         st.session_state['user_email'] = user_data['email']
                         st.rerun()
+                        return  # Prevent further execution after rerun
                     else:
                         st.error("Invalid username or password")
         

@@ -1,0 +1,3 @@
+[server]
+# This stops the inotify limit error on cloud servers
+fileWatcherType = "none"

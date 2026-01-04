@@ -932,6 +932,68 @@ def authenticate_user_from_database(supabase: Client, username: str, password: s
         return False, None
 
 
+def save_psychometric_assessment(supabase: Client, email: str, personality_profile: dict) -> bool:
+    """Save psychometric assessment results to user_profiles table."""
+    try:
+        if not supabase or not email or not personality_profile:
+            return False
+        
+        # Convert personality_profile to JSON string
+        profile_json = json.dumps(personality_profile)
+        
+        # Update user_profiles table with personality_profile
+        # Use upsert pattern - update if exists, insert key fields if not
+        try:
+            # First, try to update existing user
+            result = supabase.table('user_profiles').update({
+                'personality_profile': profile_json,
+                'personality_profile_updated_at': datetime.now().isoformat()
+            }).eq('email', email).execute()
+            
+            # If update succeeded (affected at least one row), return True
+            if result.data:
+                return True
+            else:
+                # No rows updated, user might not exist - that's okay, we'll just return False
+                return False
+        except Exception as e:
+            # If personality_profile column doesn't exist, try without the updated_at field
+            try:
+                result = supabase.table('user_profiles').update({
+                    'personality_profile': profile_json
+                }).eq('email', email).execute()
+                return bool(result.data)
+            except Exception as e2:
+                # Column might not exist - that's okay, we'll return False
+                return False
+    except Exception as e:
+        return False
+
+
+def load_psychometric_assessment(supabase: Client, email: str) -> dict:
+    """Load psychometric assessment results from user_profiles table."""
+    try:
+        if not supabase or not email:
+            return {}
+        
+        # Try to get personality_profile from user_profiles table
+        try:
+            result = supabase.table('user_profiles').select('personality_profile').eq('email', email).execute()
+            
+            if result.data and len(result.data) > 0:
+                profile_json = result.data[0].get('personality_profile')
+                if profile_json:
+                    # Parse JSON string back to dict
+                    return json.loads(profile_json)
+        except Exception as e:
+            # Column might not exist or other error - return empty dict
+            return {}
+    except Exception as e:
+        return {}
+    
+    return {}
+
+
 def get_user_email_from_database(supabase: Client, username: str) -> str:
     """Get user email from database. Tries 'user_profiles' table first, then 'user_accounts', then 'users' table."""
     try:
@@ -1570,6 +1632,12 @@ def main():
             st.session_state.psychometric_assessment = PsychometricAssessment()
         if 'assessment_completed' not in st.session_state:
             st.session_state.assessment_completed = False
+            # Try to load saved assessment from database
+            if supabase and user_email:
+                saved_profile = load_psychometric_assessment(supabase, user_email)
+                if saved_profile:
+                    st.session_state.psychometric_assessment.personality_profile = saved_profile
+                    st.session_state.assessment_completed = True
         if 'job_url' not in st.session_state:
             st.session_state.job_url = ""
         if 'job_description' not in st.session_state:
@@ -1712,6 +1780,15 @@ def main():
                 # All questions answered, calculate profile
                 st.session_state.psychometric_assessment._calculate_personality_profile()
                 st.session_state.assessment_completed = True
+                
+                # Save assessment results to database
+                if supabase and user_email:
+                    personality_profile = st.session_state.psychometric_assessment.personality_profile
+                    if personality_profile:
+                        save_success = save_psychometric_assessment(supabase, user_email, personality_profile)
+                        if save_success:
+                            st.toast("✅ Assessment results saved successfully!")
+                
                 st.rerun()
     
     # Right column: The Job

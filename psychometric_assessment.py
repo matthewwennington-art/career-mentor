@@ -178,6 +178,246 @@ class PsychometricAssessment:
                     "c": {"leadership": 2, "relationship-focused": 1},
                     "d": {"exploratory": 2, "versatile": 1}
                 }
+            },
+            {
+                "id": 11,
+                "question": "When conflicts arise at work, you typically:",
+                "options": {
+                    "a": "Address them directly and seek immediate resolution",
+                    "b": "Mediate and find a compromise that works for everyone",
+                    "c": "Step back and analyze the situation before responding",
+                    "d": "Avoid confrontation and focus on finding common ground"
+                },
+                "traits": {
+                    "a": {"assertive": 2, "direct": 1},
+                    "b": {"diplomatic": 2, "collaborative": 1},
+                    "c": {"analytical": 2, "thoughtful": 1},
+                    "d": {"harmonious": 2, "peaceful": 1}
+                }
+            },
+            {
+                "id": 12,
+                "question": "Your approach to risk-taking is:",
+                "options": {
+                    "a": "Calculated - you weigh risks carefully before acting",
+                    "b": "Bold - you're willing to take significant risks for potential rewards",
+                    "c": "Cautious - you prefer proven, safe approaches",
+                    "d": "Adaptive - you adjust your risk tolerance based on the situation"
+                },
+                "traits": {
+                    "a": {"analytical": 2, "careful": 1},
+                    "b": {"bold": 2, "risk-taking": 1},
+                    "c": {"cautious": 2, "risk-averse": 1},
+                    "d": {"adaptable": 2, "flexible": 1}
+                }
+            },
+            {
+                "id": 13,
+                "question": "You prefer to work:",
+                "options": {
+                    "a": "On multiple projects simultaneously",
+                    "b": "On one project at a time with full focus",
+                    "c": "In short bursts with frequent breaks",
+                    "d": "In long, uninterrupted sessions"
+                },
+                "traits": {
+                    "a": {"multitasking": 2, "versatile": 1},
+                    "b": {"focused": 2, "dedicated": 1},
+                    "c": {"balanced": 2, "sustainable": 1},
+                    "d": {"deep-work": 2, "concentrated": 1}
+                }
+            },
+            {
+                "id": 14,
+                "question": "When you make a mistake, you:",
+                "options": {
+                    "a": "Analyze what went wrong and create a plan to prevent it",
+                    "b": "Learn from it quickly and move forward",
+                    "c": "Discuss it with others to gain perspective",
+                    "d": "Reflect deeply on the lessons learned"
+                },
+                "traits": {
+                    "a": {"systematic": 2, "organized": 1},
+                    "b": {"resilient": 2, "forward-looking": 1},
+                    "c": {"collaborative": 2, "open": 1},
+                    "d": {"reflective": 2, "thoughtful": 1}
+                }
+            },
+            {
+                "id": 15,
+                "question": "You feel most energised when:",
+                "options": {
+                    "a": "Working on challenging, complex problems",
+                    "b": "Collaborating with a dynamic team",
+                    "c": "Making progress toward clear goals",
+                    "d": "Exploring new ideas and possibilities"
+                },
+                "traits": {
+                    "a": {"problem-solver": 2, "analytical": 1},
+                    "b": {"collaborative": 2, "energetic": 1},
+                    "c": {"goal-oriented": 2, "achievement-driven": 1},
+                    "d": {"creative": 2, "exploratory": 1}
+                }
+            },
+            {
+                "id": 16,
+                "question": "Your ideal manager would:",
+                "options": {
+                    "a": "Give you clear direction and regular feedback",
+                    "b": "Provide autonomy and trust your judgment",
+                    "c": "Be collaborative and open to your ideas",
+                    "d": "Challenge you with stretch goals and opportunities"
+                },
+                "traits": {
+                    "a": {"structured": 2, "guided": 1},
+                    "b": {"independent": 2, "self-directed": 1},
+                    "c": {"collaborative": 2, "participative": 1},
+                    "d": {"growth-oriented": 2, "ambitious": 1}
+                }
+            },
+            {
+                "id": 17,
+                "question": "When prioritising tasks, you:",
+                "options": {
+                    "a": "Focus on what's most urgent",
+                    "b": "Focus on what's most important long-term",
+                    "c": "Balance urgency and importance",
+                    "d": "Tackle what feels most engaging"
+                },
+                "traits": {
+                    "a": {"reactive": 2, "responsive": 1},
+                    "b": {"strategic": 2, "forward-thinking": 1},
+                    "c": {"balanced": 2, "organised": 1},
+                    "d": {"intuitive": 2, "passion-driven": 1}
+                }
+            },
+            {
+                "id": 18,
+                "question": "In meetings, you typically:",
+                "options": {
+                    "a": "Take charge and drive the agenda",
+                    "b": "Listen actively and contribute when relevant",
+                    "c": "Ask clarifying questions and ensure understanding",
+                    "d": "Generate ideas and build on others' suggestions"
+                },
+                "traits": {
+                    "a": {"leadership": 2, "assertive": 1},
+                    "b": {"observant": 2, "selective": 1},
+                    "c": {"detail-oriented": 2, "thorough": 1},
+                    "d": {"creative": 2, "collaborative": 1}
+                }
+            },
+            {
+                "id": 19,
+                "question": "You prefer recognition that is:",
+                "options": {
+                    "a": "Public and celebrates your achievements",
+                    "b": "Private and acknowledges your contribution",
+                    "c": "Tangible through rewards or promotions",
+                    "d": "Meaningful through impact on others"
+                },
+                "traits": {
+                    "a": {"confident": 2, "visible": 1},
+                    "b": {"modest": 2, "humble": 1},
+                    "c": {"achievement-driven": 2, "results-oriented": 1},
+                    "d": {"altruistic": 2, "impact-focused": 1}
+                }
+            },
+            {
+                "id": 20,
+                "question": "When facing uncertainty, you:",
+                "options": {
+                    "a": "Gather more information before deciding",
+                    "b": "Make the best decision with available information",
+                    "c": "Seek advice from trusted colleagues",
+                    "d": "Trust your instincts and adapt as needed"
+                },
+                "traits": {
+                    "a": {"cautious": 2, "informed": 1},
+                    "b": {"decisive": 2, "practical": 1},
+                    "c": {"collaborative": 2, "advisory": 1},
+                    "d": {"intuitive": 2, "adaptable": 1}
+                }
+            },
+            {
+                "id": 21,
+                "question": "Your ideal work schedule would be:",
+                "options": {
+                    "a": "Fixed hours with clear boundaries",
+                    "b": "Flexible hours based on your productivity patterns",
+                    "c": "Intense periods followed by recovery time",
+                    "d": "Consistent routine with occasional variation"
+                },
+                "traits": {
+                    "a": {"structured": 2, "boundary-setting": 1},
+                    "b": {"flexible": 2, "self-aware": 1},
+                    "c": {"intense": 2, "cyclical": 1},
+                    "d": {"balanced": 2, "consistent": 1}
+                }
+            },
+            {
+                "id": 22,
+                "question": "You're most likely to change jobs when:",
+                "options": {
+                    "a": "You've stopped learning and growing",
+                    "b": "The culture no longer aligns with your values",
+                    "c": "Better opportunities arise elsewhere",
+                    "d": "You've achieved your goals in the current role"
+                },
+                "traits": {
+                    "a": {"growth-oriented": 2, "learning-focused": 1},
+                    "b": {"values-driven": 2, "principled": 1},
+                    "c": {"opportunistic": 2, "ambitious": 1},
+                    "d": {"goal-oriented": 2, "achievement-focused": 1}
+                }
+            },
+            {
+                "id": 23,
+                "question": "When networking, you prefer to:",
+                "options": {
+                    "a": "Build deep, meaningful relationships with few people",
+                    "b": "Connect with many people across different industries",
+                    "c": "Focus on relationships within your field",
+                    "d": "Let relationships develop naturally through work"
+                },
+                "traits": {
+                    "a": {"deep": 2, "selective": 1},
+                    "b": {"broad": 2, "exploratory": 1},
+                    "c": {"specialized": 2, "focused": 1},
+                    "d": {"organic": 2, "natural": 1}
+                }
+            },
+            {
+                "id": 24,
+                "question": "You handle deadlines by:",
+                "options": {
+                    "a": "Planning ahead and finishing early",
+                    "b": "Working steadily and meeting them exactly",
+                    "c": "Thriving under pressure and working intensively",
+                    "d": "Breaking work into manageable chunks"
+                },
+                "traits": {
+                    "a": {"proactive": 2, "organised": 1},
+                    "b": {"reliable": 2, "consistent": 1},
+                    "c": {"pressure-driven": 2, "intense": 1},
+                    "d": {"methodical": 2, "systematic": 1}
+                }
+            },
+            {
+                "id": 25,
+                "question": "Your biggest career fear is:",
+                "options": {
+                    "a": "Becoming stagnant or irrelevant",
+                    "b": "Not making a meaningful impact",
+                    "c": "Missing out on opportunities",
+                    "d": "Not reaching your full potential"
+                },
+                "traits": {
+                    "a": {"growth-oriented": 2, "adaptable": 1},
+                    "b": {"impact-focused": 2, "purpose-driven": 1},
+                    "c": {"opportunistic": 2, "ambitious": 1},
+                    "d": {"achievement-oriented": 2, "self-improving": 1}
+                }
             }
         ]
     

@@ -1,12 +1,8 @@
 [server]
 # This stops the inotify limit error on cloud servers
 fileWatcherType = "none"
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
-
-[server]
-enableCORS = false
-enableXsrfProtection = false
-fileWatcherType = "none"
-

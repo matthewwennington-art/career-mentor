@@ -1476,34 +1476,19 @@ def main():
         except: pass
         # #endregion
     else:
-        # Try authenticator login - location must be 'main', 'sidebar', or 'unrendered'
-        # Keep this call simple and outside complex logic
-        # Only call this if we're NOT already authenticated
+        # Not authenticated - will show fallback login form
+        # Skip authenticator.login() since it doesn't work in this setup
+        # The fallback form handles authentication directly
+        authentication_status = None
+        name = None
+        username = None
+        # #region agent log
         try:
-            if st.session_state.get('reload_auth', False):
-                authenticator = setup_authentication()
-                st.session_state['reload_auth'] = False
-            
-            name, authentication_status, username = authenticator.login(location='main')
-            # #region agent log
-            try:
-                log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1478","message":"Authenticator login result","data":{"name":name if name else None,"authentication_status":authentication_status,"username":username if username else None},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-            except: pass
-            # #endregion
-        except Exception as e:
-            # If authenticator fails, show fallback login form
-            authentication_status = None
-            name = None
-            username = None
-            # #region agent log
-            try:
-                log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1487","message":"Authenticator login exception","data":{"error":str(e)},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-            except: pass
-            # #endregion
+            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1478","message":"Using fallback login (authenticator skipped)","data":{},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+        except: pass
+        # #endregion
     
     # Store authentication_status in session state
     was_authenticated = st.session_state.get('authentication_status', False)
@@ -1574,7 +1559,8 @@ def main():
             except Exception as e:
                 st.error(f"Registration error: {str(e)}")
         
-        # Fallback login form (shown if authenticator fails or for manual login)
+        # Single login form (fallback method)
+        # Only show this form since authenticator login doesn't work in this setup
         st.markdown("---")
         st.write("**Please log in:**")
         with st.form("login_form", clear_on_submit=False):
@@ -1639,22 +1625,25 @@ def main():
         with st.sidebar:
             st.write(f'Welcome *{name}*')
             
-            # Logout button - handle both streamlit-authenticator and manual login
-            logout_clicked = False
-            try:
-                # Try streamlit-authenticator logout first (works if user logged in via authenticator)
-                logout_clicked = authenticator.logout(button_name='Logout', location='sidebar')
-            except Exception as logout_error:
-                # If logout fails (e.g., user logged in via manual form), use custom logout
-                # Create custom logout button for manual login
-                if st.button('Logout', key='custom_logout'):
-                    logout_clicked = True
-            
-            if logout_clicked:
+            # Logout button - use custom logout since we're using fallback authentication
+            if st.button('Logout', key='custom_logout'):
                 # Clear all session state on logout
                 for key in list(st.session_state.keys()):
                     del st.session_state[key]
+                # Explicitly reset authentication flags
+                st.session_state['authenticated'] = False
+                st.session_state['authentication_status'] = False
+                st.session_state['name'] = None
+                st.session_state['username'] = None
+                # #region agent log
+                try:
+                    log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+                    with open(log_path, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H","location":"app.py:1635","message":"Logout clicked, clearing session state","data":{},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+                except: pass
+                # #endregion
                 st.rerun()
+                return  # Prevent further execution
             
             # Initialize Supabase client
             supabase = get_supabase_client()

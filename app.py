@@ -1131,7 +1131,6 @@ def render_history_sidebar(supabase, username, user_email):
     st.markdown("## 📜 Application History")
     
     if supabase:
-        # Debug: Show email being used for query
         if not user_email:
             st.warning("⚠️ No user email found. History cannot be loaded.")
         
@@ -1139,14 +1138,6 @@ def render_history_sidebar(supabase, username, user_email):
         # Only returns records where email matches the logged-in user
         # Ordered by date (newest first)
         history = get_user_history_by_email(supabase, user_email)
-        
-        # Debug: Show count of history items found
-        if user_email:
-            with st.expander("🔍 Debug: History Query", expanded=False):
-                st.write(f"Querying with email: `{user_email}`")
-                st.write(f"Found {len(history)} history items")
-                if history:
-                    st.json([{"id": h.get('id'), "job_title": h.get('job_title'), "company": h.get('company_name'), "user_email": h.get('user_email')} for h in history[:3]])
         
         if history:
             # Store selected history ID in session state
@@ -1421,15 +1412,6 @@ def render_analysis_tabs(gemini_analysis, company_research=None, cover_letter_te
 def main():
     """Main Streamlit application."""
     
-    # #region agent log
-    try:
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"app.py:1421","message":"Main function start","data":{"has_authenticated_key":"authenticated" in st.session_state,"authenticated_value":st.session_state.get('authenticated'),"has_auth_status_key":"authentication_status" in st.session_state,"auth_status_value":st.session_state.get('authentication_status')},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-    except: pass
-    # #endregion
-    
     # Set up authentication
     authenticator = setup_authentication()
     
@@ -1442,14 +1424,6 @@ def main():
         ('authenticated' in st.session_state and st.session_state.get('authenticated') == True) or
         (st.session_state.get('authentication_status') == True)
     )
-    
-    # #region agent log
-    try:
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"app.py:1440","message":"Pre-auth check","data":{"is_already_authenticated":is_already_authenticated,"has_authenticated_key":"authenticated" in st.session_state,"authenticated_value":st.session_state.get('authenticated'),"has_auth_status_key":"authentication_status" in st.session_state,"auth_status_value":st.session_state.get('authentication_status')},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-    except: pass
-    # #endregion
     
     if is_already_authenticated:
         # User is authenticated via session state, proceed to app
@@ -1468,13 +1442,6 @@ def main():
         st.session_state['authenticated'] = True
         st.session_state['name'] = name
         st.session_state['username'] = username
-        # #region agent log
-        try:
-            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"app.py:1460","message":"Session state auth path","data":{"name":name,"username":username,"skipped_authenticator_login":True},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-        except: pass
-        # #endregion
     else:
         # Not authenticated - will show fallback login form
         # Skip authenticator.login() since it doesn't work in this setup
@@ -1482,44 +1449,14 @@ def main():
         authentication_status = None
         name = None
         username = None
-        # #region agent log
-        try:
-            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1478","message":"Using fallback login (authenticator skipped)","data":{},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-        except: pass
-        # #endregion
     
     # Store authentication_status in session state
     was_authenticated = st.session_state.get('authentication_status', False)
     st.session_state['authentication_status'] = authentication_status
     
-    # #region agent log
-    try:
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"app.py:1450","message":"Auth status check","data":{"was_authenticated":was_authenticated,"authentication_status":authentication_status,"will_rerun":authentication_status and not was_authenticated},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-    except: pass
-    # #endregion
-    
     # If authentication_status just became True, rerun to refresh the page
     if authentication_status and not was_authenticated:
-        # #region agent log
-        try:
-            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"app.py:1454","message":"Triggering rerun after auth","data":{},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-        except: pass
-        # #endregion
         st.rerun()
-    
-    # #region agent log
-    try:
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"app.py:1457","message":"Checking if authenticated","data":{"authentication_status":authentication_status,"not_auth":not authentication_status},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-    except: pass
-    # #endregion
     
     # If not authenticated, show login page
     if not authentication_status:
@@ -1578,13 +1515,6 @@ def main():
                     st.session_state['username'] = user_data['username']
                     st.session_state['user_email'] = user_data['email']
                     st.session_state['authentication_status'] = True  # Also set this for consistency
-                    # #region agent log
-                    try:
-                        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-                        with open(log_path, 'a', encoding='utf-8') as f:
-                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"app.py:1511","message":"Fallback login success, setting session state","data":{"name":user_data.get('name'),"username":user_data.get('username'),"email":user_data.get('email')},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-                    except: pass
-                    # #endregion
                     st.rerun()
                     return  # Prevent further execution after rerun
                 else:
@@ -1593,27 +1523,11 @@ def main():
         st.stop()
         return
     
-    # #region agent log
-    try:
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"app.py:1521","message":"Checking auth status for main app","data":{"auth_status_in_session":st.session_state.get('authentication_status'),"has_name":name is not None,"has_username":username is not None},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-    except: pass
-    # #endregion
-    
     # User is authenticated - show the app
     # Wrap entire logged-in UI in authentication check
     # Use robust check that handles both authentication flags
     auth_check_result = st.session_state.get('authentication_status') or \
                        (st.session_state.get('authenticated') == True)
-    
-    # #region agent log
-    try:
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"app.py:1618","message":"Main app auth check","data":{"auth_check_result":auth_check_result,"auth_status":st.session_state.get('authentication_status'),"authenticated":st.session_state.get('authenticated'),"has_name":name is not None if 'name' in locals() else False,"has_username":username is not None if 'username' in locals() else False},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-    except: pass
-    # #endregion
     
     if auth_check_result:
         # Get user email from database and store in session state for privacy filtering
@@ -1635,13 +1549,6 @@ def main():
                 st.session_state['authentication_status'] = False
                 st.session_state['name'] = None
                 st.session_state['username'] = None
-                # #region agent log
-                try:
-                    log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H","location":"app.py:1635","message":"Logout clicked, clearing session state","data":{},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
-                except: pass
-                # #endregion
                 st.rerun()
                 return  # Prevent further execution
             

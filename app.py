@@ -1437,9 +1437,23 @@ def main():
     # This check must come FIRST to prevent authenticator.login from overwriting manual auth
     # Check both 'authenticated' key and 'authentication_status' to handle all cases
     # This prevents authenticator.login() from overwriting manual authentication
-    if ('authenticated' in st.session_state and st.session_state.get('authenticated') == True) or \
-       (st.session_state.get('authentication_status') == True):
+    # IMPORTANT: This check must happen BEFORE calling authenticator.login() to prevent it from clearing session state
+    is_already_authenticated = (
+        ('authenticated' in st.session_state and st.session_state.get('authenticated') == True) or
+        (st.session_state.get('authentication_status') == True)
+    )
+    
+    # #region agent log
+    try:
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"G","location":"app.py:1440","message":"Pre-auth check","data":{"is_already_authenticated":is_already_authenticated,"has_authenticated_key":"authenticated" in st.session_state,"authenticated_value":st.session_state.get('authenticated'),"has_auth_status_key":"authentication_status" in st.session_state,"auth_status_value":st.session_state.get('authentication_status')},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+    except: pass
+    # #endregion
+    
+    if is_already_authenticated:
         # User is authenticated via session state, proceed to app
+        # DO NOT call authenticator.login() here as it may clear session state in deployed environments
         name = st.session_state.get('name')
         username = st.session_state.get('username')
         
@@ -1458,12 +1472,13 @@ def main():
         try:
             log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
             with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"app.py:1438","message":"Session state auth path","data":{"name":name,"username":username,"has_authenticated_key":"authenticated" in st.session_state,"has_auth_status_key":"authentication_status" in st.session_state},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"app.py:1460","message":"Session state auth path","data":{"name":name,"username":username,"skipped_authenticator_login":True},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
         except: pass
         # #endregion
     else:
         # Try authenticator login - location must be 'main', 'sidebar', or 'unrendered'
         # Keep this call simple and outside complex logic
+        # Only call this if we're NOT already authenticated
         try:
             if st.session_state.get('reload_auth', False):
                 authenticator = setup_authentication()
@@ -1474,7 +1489,7 @@ def main():
             try:
                 log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
                 with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1451","message":"Authenticator login result","data":{"name":name if name else None,"authentication_status":authentication_status,"username":username if username else None},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1478","message":"Authenticator login result","data":{"name":name if name else None,"authentication_status":authentication_status,"username":username if username else None},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
             except: pass
             # #endregion
         except Exception as e:
@@ -1486,7 +1501,7 @@ def main():
             try:
                 log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
                 with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1452","message":"Authenticator login exception","data":{"error":str(e)},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"app.py:1487","message":"Authenticator login exception","data":{"error":str(e)},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
             except: pass
             # #endregion
     
@@ -1602,7 +1617,19 @@ def main():
     
     # User is authenticated - show the app
     # Wrap entire logged-in UI in authentication check
-    if st.session_state.get('authentication_status'):
+    # Use robust check that handles both authentication flags
+    auth_check_result = st.session_state.get('authentication_status') or \
+                       (st.session_state.get('authenticated') == True)
+    
+    # #region agent log
+    try:
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"F","location":"app.py:1618","message":"Main app auth check","data":{"auth_check_result":auth_check_result,"auth_status":st.session_state.get('authentication_status'),"authenticated":st.session_state.get('authenticated'),"has_name":name is not None if 'name' in locals() else False,"has_username":username is not None if 'username' in locals() else False},"timestamp":int(datetime.now().timestamp()*1000)}) + '\n')
+    except: pass
+    # #endregion
+    
+    if auth_check_result:
         # Get user email from database and store in session state for privacy filtering
         supabase = get_supabase_client()
         user_email = get_user_email_from_database(supabase, username)

@@ -2,19 +2,6 @@
 Streamlit Career Coach Application
 Web interface for CV analysis with multiple input methods.
 """
-import streamlit as st
-import sys
-
-# Catch startup errors and show them on the screen
-try:
-    # YOUR ENTIRE APP CODE GOES HERE
-    st.set_page_config(page_title="Mentor")
-    st.write("App is starting...")
-    # ... the rest of your imports and logic ...
-    
-except Exception as e:
-    st.error(f"Startup Error: {e}")
-    st.exception(e)
 
 import streamlit as st
 import io
@@ -44,15 +31,12 @@ import streamlit_authenticator as stauth
 from datetime import datetime
 from supabase import create_client, Client
 
-# IMPORTANT: st.set_page_config must be the first Streamlit command
-try:
-    st.set_page_config(
-        page_title="Career Coach - CV Analyser",
-        page_icon="💼",
-        layout="wide"
-    )
-except Exception as e:
-    pass
+# IMPORTANT: st.set_page_config must be the very first Streamlit command
+st.set_page_config(
+    page_title="Career Coach - CV Analyser",
+    page_icon="💼",
+    layout="wide"
+)
 
 def extract_text_from_pdf(uploaded_file) -> str:
     """Extract text from uploaded PDF file."""
@@ -277,9 +261,16 @@ IMPORTANT:
 - For interview deep-dive items, be specific about what to look for (e.g., "Check their 'About Us' page for their mission statement and note their core values")
 - Return ONLY valid JSON. Do not include any text before or after the JSON."""
         
-        # Generate response
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
+        # Generate response with streaming
+        response = model.generate_content(prompt, stream=True)
+        
+        # Collect full response while streaming
+        response_text = ""
+        for chunk in response:
+            if chunk.text:
+                response_text += chunk.text
+        
+        response_text = response_text.strip()
         
         # Try to extract JSON from the response
         json_match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', response_text, re.DOTALL)
@@ -299,6 +290,99 @@ IMPORTANT:
         return {"error": f"Failed to parse JSON response: {str(e)}", "raw_response": response.text if 'response' in locals() else "No response"}
     except Exception as e:
         return {"error": f"Error generating company research: {str(e)}"}
+
+
+def _stream_gemini_analysis(cv_text: str, job_description: str):
+    """Generator function that streams Gemini analysis response."""
+    # Get API key from environment or Streamlit secrets
+    api_key = os.getenv('GEMINI_API_KEY') or st.secrets.get('GEMINI_API_KEY', None)
+    
+    if not api_key:
+        yield "Error: Google API key not found."
+        return
+    
+    # Configure Gemini
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    
+    # Create the prompt
+    prompt = f"""Act as an elite UK Headhunter with 15+ years of experience. Analyse the following CV against the job description provided.
+
+CV Text:
+{cv_text}
+
+Job Description:
+{job_description}
+
+Provide your analysis in the following JSON format:
+{{
+    "match_score": <number 0-100>,
+    "salary_range": "<UK salary range, e.g., £45,000 - £55,000>",
+    "missing_hard_skills": [
+        "<skill 1>",
+        "<skill 2>",
+        "<skill 3>"
+    ],
+    "interview_questions": [
+        "<Question 1 targeting skill gaps>",
+        "<Question 2 targeting skill gaps>",
+        "<Question 3 targeting skill gaps>"
+    ],
+    "power_word_swaps": [
+        {{
+            "original": "<generic word>",
+            "replacement": "<power word>",
+            "context": "<brief explanation>"
+        }},
+        {{
+            "original": "<generic word>",
+            "replacement": "<power word>",
+            "context": "<brief explanation>"
+        }},
+        {{
+            "original": "<generic word>",
+            "replacement": "<power word>",
+            "context": "<brief explanation>"
+        }},
+        {{
+            "original": "<generic word>",
+            "replacement": "<power word>",
+            "context": "<brief explanation>"
+        }},
+        {{
+            "original": "<generic word>",
+            "replacement": "<power word>",
+            "context": "<brief explanation>"
+        }}
+    ],
+    "cv_improvements": [
+        {{
+            "current": "<current bullet point>",
+            "improved": "<improved bullet point>",
+            "reason": "<why this change helps>"
+        }},
+        {{
+            "current": "<current bullet point>",
+            "improved": "<improved bullet point>",
+            "reason": "<why this change helps>"
+        }},
+        {{
+            "current": "<current bullet point>",
+            "improved": "<improved bullet point>",
+            "reason": "<why this change helps>"
+        }}
+    ]
+}}
+
+IMPORTANT: Return ONLY valid JSON. Do not include any text before or after the JSON."""
+    
+    # Generate response with streaming
+    response = model.generate_content(prompt, stream=True)
+    
+    # Yield chunks as they arrive
+    for chunk in response:
+        if chunk.text:
+            yield chunk.text
 
 
 def get_gemini_analysis(cv_text: str, job_description: str) -> dict:
@@ -385,9 +469,16 @@ Provide your analysis in the following JSON format:
 
 IMPORTANT: Return ONLY valid JSON. Do not include any text before or after the JSON."""
         
-        # Generate response
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
+        # Generate response with streaming
+        response = model.generate_content(prompt, stream=True)
+        
+        # Collect full response while streaming
+        response_text = ""
+        for chunk in response:
+            if chunk.text:
+                response_text += chunk.text
+        
+        response_text = response_text.strip()
         
         # Try to extract JSON from the response
         # Sometimes Gemini wraps JSON in markdown code blocks
@@ -474,9 +565,16 @@ Requirements:
 
 Format the cover letter as a proper business letter with appropriate spacing and structure."""
         
-        # Generate response
-        response = model.generate_content(prompt)
-        return response.text
+        # Generate response with streaming
+        response = model.generate_content(prompt, stream=True)
+        
+        # Collect full response while streaming
+        response_text = ""
+        for chunk in response:
+            if chunk.text:
+                response_text += chunk.text
+        
+        return response_text
         
     except Exception as e:
         return f"Error generating cover letter: {str(e)}"
@@ -714,14 +812,18 @@ def save_user_to_database(supabase: Client, username: str, name: str, password_h
         return False
 
 
-def get_user_history_by_email(supabase: Client, email: str) -> list:
+@st.cache_data(ttl=600)  # Caches for 10 minutes
+def fetch_user_history(email: str) -> list:
     """
-    Get all analysis history for a user by email.
-    Only returns records where user_email matches the provided email (multi-user privacy).
-    Ordered by date (newest first).
+    Cached function to fetch user history from Supabase.
+    Caches for 10 minutes to reduce database queries.
     """
     try:
-        if not supabase or not email:
+        if not email:
+            return []
+        
+        supabase = get_supabase_client()
+        if not supabase:
             return []
         
         # Query career_history table filtering by user_email for privacy
@@ -743,8 +845,18 @@ def get_user_history_by_email(supabase: Client, email: str) -> list:
         
         return result.data if result.data else []
     except Exception as e:
-        st.error(f"Error in get_user_history_by_email: {str(e)}")
+        st.error(f"Error in fetch_user_history: {str(e)}")
         return []
+
+
+def get_user_history_by_email(supabase: Client, email: str) -> list:
+    """
+    Get all analysis history for a user by email.
+    Only returns records where user_email matches the provided email (multi-user privacy).
+    Ordered by date (newest first).
+    This function now uses the cached fetch_user_history function.
+    """
+    return fetch_user_history(email)
 
 
 def authenticate_user_from_database(supabase: Client, username: str, password: str) -> tuple:
@@ -1012,6 +1124,300 @@ def setup_authentication():
     return authenticator
 
 
+@st.fragment
+def render_history_sidebar(supabase, username, user_email):
+    """Render the application history sidebar as a fragment."""
+    st.markdown("---")
+    st.markdown("## 📜 Application History")
+    
+    if supabase:
+        # Debug: Show email being used for query
+        if not user_email:
+            st.warning("⚠️ No user email found. History cannot be loaded.")
+        
+        # Get user's history by email - ensures multi-user privacy
+        # Only returns records where email matches the logged-in user
+        # Ordered by date (newest first)
+        history = get_user_history_by_email(supabase, user_email)
+        
+        # Debug: Show count of history items found
+        if user_email:
+            with st.expander("🔍 Debug: History Query", expanded=False):
+                st.write(f"Querying with email: `{user_email}`")
+                st.write(f"Found {len(history)} history items")
+                if history:
+                    st.json([{"id": h.get('id'), "job_title": h.get('job_title'), "company": h.get('company_name'), "user_email": h.get('user_email')} for h in history[:3]])
+        
+        if history:
+            # Store selected history ID in session state
+            if 'selected_history_id' not in st.session_state:
+                st.session_state.selected_history_id = None
+            
+            # Create options for selectbox
+            history_options = ["Select a past application..."]
+            history_dict = {}
+            
+            for item in history:
+                job_title = item.get('job_title', 'Untitled')
+                company = item.get('company_name', '')
+                display_name = item.get('display_name', '')  # Custom display name if set
+                match_score = item.get('match_score', 0)
+                history_id = item.get('id')
+                created_at = item.get('created_at', '')
+                
+                # Format date
+                try:
+                    if created_at:
+                        date_obj = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        date_str = date_obj.strftime('%d %b %Y')
+                    else:
+                        date_str = 'Unknown date'
+                except:
+                    date_str = 'Unknown date'
+                
+                # Create display label - use custom name if set, otherwise company name first, then job title
+                if display_name:
+                    label = f"{display_name} ({match_score}/100) - {date_str}"
+                elif company:
+                    label = f"{company} - {job_title} ({match_score}/100) - {date_str}"
+                else:
+                    label = f"{job_title} ({match_score}/100) - {date_str}"
+                
+                history_options.append(label)
+                history_dict[label] = history_id
+            
+            # Calculate the correct index for the selectbox based on selected_history_id
+            selected_index = 0  # Default to "Select a past application..."
+            if st.session_state.selected_history_id is not None:
+                # Find the index of the selected item
+                for idx, label in enumerate(history_options):
+                    if label in history_dict and history_dict[label] == st.session_state.selected_history_id:
+                        selected_index = idx
+                        break
+            
+            # Display as selectbox
+            selected_label = st.selectbox(
+                "Choose an application:",
+                history_options,
+                key="history_selectbox",
+                index=selected_index
+            )
+            
+            # If a history item is selected, load it
+            if selected_label != "Select a past application..." and selected_label in history_dict:
+                history_id = history_dict[selected_label]
+                
+                # Set selected history ID to trigger loading (only if different)
+                if st.session_state.selected_history_id != history_id:
+                    st.session_state.selected_history_id = history_id
+                    # Load the analysis data immediately
+                    history_data = load_analysis_from_supabase(supabase, username, history_id, email=user_email)
+                    
+                    if history_data:
+                        # Load the analysis data
+                        st.session_state.job_description = history_data.get('job_description', '')
+                        st.session_state.job_url = ''  # Clear URL since we're loading from history
+                        
+                        # Parse and set the analysis data
+                        analysis_json = history_data.get('analysis_text', '{}')
+                        company_research_json = history_data.get('company_research', '{}')
+                        cover_letter_text = history_data.get('cover_letter', '')
+                        
+                        # Store in session state for display
+                        try:
+                            st.session_state.loaded_analysis = json.loads(analysis_json) if analysis_json and analysis_json.strip() else {}
+                        except json.JSONDecodeError as e:
+                            st.session_state.loaded_analysis = {}
+                        try:
+                            st.session_state.loaded_company_research = json.loads(company_research_json) if company_research_json and company_research_json.strip() else {}
+                        except json.JSONDecodeError as e:
+                            st.session_state.loaded_company_research = {}
+                        st.session_state.loaded_cover_letter = cover_letter_text
+                        st.session_state.loaded_history_id = history_id
+                        st.session_state.show_loaded_analysis = True  # Flag to show analysis instead of forms
+                        # Trigger rerun to display the loaded analysis
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Failed to load analysis with ID {history_id}. Please check if the record exists and belongs to your account.")
+                
+                # Add rename functionality (only show if this is the currently selected item)
+                if st.session_state.selected_history_id == history_id:
+                    with st.expander("✏️ Rename this application", expanded=False):
+                        # Get current display name or default
+                        current_item = next((item for item in history if item.get('id') == history_id), None)
+                        current_display = current_item.get('display_name', '') if current_item else ''
+                        current_company = current_item.get('company_name', '') if current_item else ''
+                        current_job = current_item.get('job_title', '') if current_item else ''
+                        
+                        # Default suggestion
+                        if not current_display and current_company:
+                            default_name = current_company
+                        elif not current_display:
+                            default_name = current_job
+                        else:
+                            default_name = current_display
+                        
+                        new_display_name = st.text_input(
+                            "Custom name:",
+                            value=default_name,
+                            key=f"rename_{history_id}",
+                            help="Enter a custom name for this application. Leave empty to use company name."
+                        )
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("💾 Save Name", key=f"save_name_{history_id}", use_container_width=True):
+                                # Update display_name in database
+                                try:
+                                    update_data = {}
+                                    if new_display_name and new_display_name.strip():
+                                        update_data['display_name'] = new_display_name.strip()
+                                    else:
+                                        update_data['display_name'] = None  # Clear custom name
+                                    
+                                    supabase.table('career_history').update(update_data).eq('id', history_id).eq('user_email', user_email).execute()
+                                    # Clear cache so updated name appears immediately
+                                    fetch_user_history.clear(user_email)
+                                    st.success("✅ Name updated!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Failed to update: {str(e)}")
+                        
+                        with col2:
+                            if st.button("🗑️ Clear Name", key=f"clear_name_{history_id}", use_container_width=True):
+                                # Clear display_name in database
+                                try:
+                                    supabase.table('career_history').update({'display_name': None}).eq('id', history_id).eq('user_email', user_email).execute()
+                                    # Clear cache so updated name appears immediately
+                                    fetch_user_history.clear(user_email)
+                                    st.success("✅ Name cleared!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Failed to clear: {str(e)}")
+        else:
+            st.info("No previous analyses yet. Run your first analysis to see it here!")
+    else:
+        st.warning("⚠️ Supabase not configured. Add SUPABASE_URL and SUPABASE_KEY to secrets.")
+
+
+@st.fragment
+def render_analysis_tabs(gemini_analysis, company_research=None, cover_letter_text=None):
+    """Render the Gemini analysis tabs as a fragment."""
+    # Tabs for different sections
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Skill Gap Analysis", "🎤 Interview Prep", "✍️ CV Improvements", "🏢 Company Intelligence", "📝 Cover Letter"])
+    
+    with tab1:
+        st.markdown("### Missing Hard Skills")
+        missing_skills = gemini_analysis.get('missing_hard_skills', [])
+        if missing_skills:
+            for i, skill in enumerate(missing_skills, 1):
+                st.markdown(f"**{i}.** {skill}")
+        else:
+            st.info("No missing skills identified - great alignment!")
+        
+        st.markdown("---")
+        st.markdown("### 💡 Why This Matters")
+        st.info("These are the specific technical skills the recruiter will be looking for. Consider highlighting related experience or upskilling in these areas.")
+    
+    with tab2:
+        st.markdown("### 🎯 Tough Interview Questions")
+        st.markdown("These questions are designed to probe your skill gaps. Prepare strong, honest answers.")
+        
+        interview_questions = gemini_analysis.get('interview_questions', [])
+        if interview_questions:
+            for i, question in enumerate(interview_questions, 1):
+                with st.expander(f"Question {i}: {question[:60]}..." if len(question) > 60 else f"Question {i}"):
+                    st.markdown(f"**{question}**")
+                    st.markdown("💡 *Tip: Prepare a STAR (Situation, Task, Action, Result) response for this question.*")
+        else:
+            st.info("No specific interview questions generated.")
+        
+        st.markdown("---")
+        st.markdown("### 🎤 Interview Strategy")
+        st.success("Use these questions to prepare your responses. Focus on demonstrating growth mindset and willingness to learn missing skills.")
+    
+    with tab3:
+        st.markdown("### ✍️ Power Word Swaps")
+        st.markdown("Replace generic buzzwords with high-impact UK action verbs to make your CV stand out.")
+        
+        power_words = gemini_analysis.get('power_word_swaps', [])
+        if power_words:
+            for i, swap in enumerate(power_words, 1):
+                st.markdown(f"**{i}. {swap.get('original', 'N/A')}** → **{swap.get('replacement', 'N/A')}**")
+                st.caption(f"💡 {swap.get('context', 'No context provided')}")
+                st.markdown("")
+        else:
+            st.info("No power word swaps suggested.")
+        
+        st.markdown("---")
+        st.markdown("### 📝 CV Bullet Point Improvements")
+        st.markdown("Specific, actionable edits to make your CV more aligned with this role.")
+        
+        cv_improvements = gemini_analysis.get('cv_improvements', [])
+        if cv_improvements:
+            for i, improvement in enumerate(cv_improvements, 1):
+                with st.expander(f"Improvement {i}"):
+                    st.markdown("**Current:**")
+                    st.text(improvement.get('current', 'N/A'))
+                    st.markdown("**Improved:**")
+                    st.success(improvement.get('improved', 'N/A'))
+                    st.markdown(f"**Why:** {improvement.get('reason', 'No reason provided')}")
+        else:
+            st.info("No specific CV improvements suggested.")
+    
+    with tab4:
+        # Company Intelligence
+        st.markdown("### 🏢 Company Intelligence")
+        st.markdown("Research insights to help you stand out in your interview.")
+        
+        if company_research and "error" not in company_research:
+            # Financial Performance
+            st.markdown("#### 💰 Financial Performance")
+            financial = company_research.get('financial_performance', {})
+            if financial:
+                st.markdown(f"**Market Position:** {financial.get('market_position', 'N/A')}")
+                st.markdown(f"**Financial Health:** {financial.get('financial_health', 'N/A')}")
+                if financial.get('key_metrics'):
+                    st.markdown(f"**Key Metrics:** {financial.get('key_metrics', 'N/A')}")
+            
+            st.markdown("---")
+            st.markdown("#### 📰 Recent News & Strategic Shifts")
+            recent_news = company_research.get('recent_news', [])
+            if recent_news:
+                for i, news_item in enumerate(recent_news, 1):
+                    with st.expander(f"**{i}. {news_item.get('headline', 'N/A')}**"):
+                        st.markdown(f"**Summary:** {news_item.get('summary', 'N/A')}")
+                        st.markdown(f"**Significance:** {news_item.get('significance', 'N/A')}")
+            
+            st.markdown("---")
+            st.markdown("#### 🎯 Interview Deep-Dive")
+            deep_dive = company_research.get('interview_deep_dive', [])
+            if deep_dive:
+                for i, item in enumerate(deep_dive, 1):
+                    st.markdown(f"**{i}.** {item}")
+        else:
+            st.info("Company research not available.")
+    
+    with tab5:
+        st.markdown("### 📝 Personalized Cover Letter")
+        if cover_letter_text:
+            st.text_area(
+                "Cover Letter Text",
+                value=cover_letter_text,
+                height=500,
+                label_visibility="collapsed",
+                help="Copy this text to use in your application"
+            )
+            st.download_button(
+                label="📥 Download Cover Letter",
+                data=cover_letter_text,
+                file_name="cover_letter.txt",
+                mime="text/plain"
+            )
+        else:
+            st.info("Cover letter not available for this analysis.")
+
+
 def main():
     """Main Streamlit application."""
     
@@ -1026,6 +1432,7 @@ def main():
         authentication_status = True
     else:
         # Try authenticator login - location must be 'main', 'sidebar', or 'unrendered'
+        # Keep this call simple and outside complex logic
         try:
             if st.session_state.get('reload_auth', False):
                 authenticator = setup_authentication()
@@ -1037,6 +1444,14 @@ def main():
             authentication_status = None
             name = None
             username = None
+    
+    # Store authentication_status in session state
+    was_authenticated = st.session_state.get('authentication_status', False)
+    st.session_state['authentication_status'] = authentication_status
+    
+    # If authentication_status just became True, rerun to refresh the page
+    if authentication_status and not was_authenticated:
+        st.rerun()
     
     # If not authenticated, show login page
     if not authentication_status:
@@ -1101,187 +1516,59 @@ def main():
         st.stop()
         return
     
-    # User is authenticated - get user email from database and store in session state for privacy filtering
-    if authentication_status:
+    # User is authenticated - show the app
+    # Wrap entire logged-in UI in authentication check
+    if st.session_state.get('authentication_status'):
+        # Get user email from database and store in session state for privacy filtering
         supabase = get_supabase_client()
         user_email = get_user_email_from_database(supabase, username)
         st.session_state['user_email'] = user_email
-    
-    # User is authenticated - show the app
-    # Add logout button and Application History in sidebar
-    with st.sidebar:
-        st.write(f'Welcome *{name}*')
         
-        # Logout button - handle both streamlit-authenticator and manual login
-        logout_clicked = False
-        try:
-            # Try streamlit-authenticator logout first (works if user logged in via authenticator)
-            logout_clicked = authenticator.logout(button_name='Logout', location='sidebar')
-        except Exception as logout_error:
-            # If logout fails (e.g., user logged in via manual form), use custom logout
-            # Create custom logout button for manual login
-            if st.button('Logout', key='custom_logout'):
-                logout_clicked = True
-        
-        if logout_clicked:
-            # Clear all session state on logout
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
-        
-        st.markdown("---")
-        st.markdown("## 📜 Application History")
-        
-        # Initialize Supabase client
-        supabase = get_supabase_client()
-        
-        if supabase:
-            # Get user's email from session state (set during login) or database
-            user_email = st.session_state.get('user_email') or get_user_email_from_database(supabase, username)
+        # Add logout button and Application History in sidebar
+        with st.sidebar:
+            st.write(f'Welcome *{name}*')
             
-            # Debug: Show email being used for query
-            if not user_email:
-                st.warning("⚠️ No user email found. History cannot be loaded.")
+            # Logout button - handle both streamlit-authenticator and manual login
+            logout_clicked = False
+            try:
+                # Try streamlit-authenticator logout first (works if user logged in via authenticator)
+                logout_clicked = authenticator.logout(button_name='Logout', location='sidebar')
+            except Exception as logout_error:
+                # If logout fails (e.g., user logged in via manual form), use custom logout
+                # Create custom logout button for manual login
+                if st.button('Logout', key='custom_logout'):
+                    logout_clicked = True
             
-            # Get user's history by email - ensures multi-user privacy
-            # Only returns records where email matches the logged-in user
-            # Ordered by date (newest first)
-            history = get_user_history_by_email(supabase, user_email)
+            if logout_clicked:
+                # Clear all session state on logout
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
+                st.rerun()
             
-            # Debug: Show count of history items found
-            if user_email:
-                with st.expander("🔍 Debug: History Query", expanded=False):
-                    st.write(f"Querying with email: `{user_email}`")
-                    st.write(f"Found {len(history)} history items")
-                    if history:
-                        st.json([{"id": h.get('id'), "job_title": h.get('job_title'), "company": h.get('company_name'), "user_email": h.get('user_email')} for h in history[:3]])
+            # Initialize Supabase client
+            supabase = get_supabase_client()
+            user_email = st.session_state.get('user_email') or get_user_email_from_database(supabase, username) if supabase else None
             
-            if history:
-                # Store selected history ID in session state
-                if 'selected_history_id' not in st.session_state:
-                    st.session_state.selected_history_id = None
-                
-                # Create options for selectbox
-                history_options = ["Select a past application..."]
-                history_dict = {}
-                
-                for item in history:
-                    job_title = item.get('job_title', 'Untitled')
-                    company = item.get('company_name', '')
-                    display_name = item.get('display_name', '')  # Custom display name if set
-                    match_score = item.get('match_score', 0)
-                    history_id = item.get('id')
-                    created_at = item.get('created_at', '')
-                    
-                    # Format date
-                    try:
-                        if created_at:
-                            date_obj = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                            date_str = date_obj.strftime('%d %b %Y')
-                        else:
-                            date_str = 'Unknown date'
-                    except:
-                        date_str = 'Unknown date'
-                    
-                    # Create display label - use custom name if set, otherwise company name first, then job title
-                    if display_name:
-                        label = f"{display_name} ({match_score}/100) - {date_str}"
-                    elif company:
-                        label = f"{company} - {job_title} ({match_score}/100) - {date_str}"
-                    else:
-                        label = f"{job_title} ({match_score}/100) - {date_str}"
-                    
-                    history_options.append(label)
-                    history_dict[label] = history_id
-                
-                # Display as selectbox
-                selected_label = st.selectbox(
-                    "Choose an application:",
-                    history_options,
-                    key="history_selectbox",
-                    index=0 if st.session_state.selected_history_id is None else 0
-                )
-                
-                # If a history item is selected, load it
-                if selected_label != "Select a past application..." and selected_label in history_dict:
-                    history_id = history_dict[selected_label]
-                    
-                    # Set selected history ID to trigger loading (only if different)
-                    if st.session_state.selected_history_id != history_id:
-                        st.session_state.selected_history_id = history_id
-                        st.rerun()
-                    
-                    # Add rename functionality (only show if this is the currently selected item)
-                    if st.session_state.selected_history_id == history_id:
-                        with st.expander("✏️ Rename this application", expanded=False):
-                            # Get current display name or default
-                            current_item = next((item for item in history if item.get('id') == history_id), None)
-                            current_display = current_item.get('display_name', '') if current_item else ''
-                            current_company = current_item.get('company_name', '') if current_item else ''
-                            current_job = current_item.get('job_title', '') if current_item else ''
-                            
-                            # Default suggestion
-                            if not current_display and current_company:
-                                default_name = current_company
-                            elif not current_display:
-                                default_name = current_job
-                            else:
-                                default_name = current_display
-                            
-                            new_display_name = st.text_input(
-                                "Custom name:",
-                                value=default_name,
-                                key=f"rename_{history_id}",
-                                help="Enter a custom name for this application. Leave empty to use company name."
-                            )
-                            
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                if st.button("💾 Save Name", key=f"save_name_{history_id}", use_container_width=True):
-                                    # Update display_name in database
-                                    try:
-                                        update_data = {}
-                                        if new_display_name and new_display_name.strip():
-                                            update_data['display_name'] = new_display_name.strip()
-                                        else:
-                                            update_data['display_name'] = None  # Clear custom name
-                                        
-                                        supabase.table('career_history').update(update_data).eq('id', history_id).eq('user_email', user_email).execute()
-                                        st.success("✅ Name updated!")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"❌ Failed to update: {str(e)}")
-                            
-                            with col2:
-                                if st.button("🗑️ Clear Name", key=f"clear_name_{history_id}", use_container_width=True):
-                                    # Clear display_name in database
-                                    try:
-                                        supabase.table('career_history').update({'display_name': None}).eq('id', history_id).eq('user_email', user_email).execute()
-                                        st.success("✅ Name cleared!")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"❌ Failed to clear: {str(e)}")
-            else:
-                st.info("No previous analyses yet. Run your first analysis to see it here!")
-        else:
-            st.warning("⚠️ Supabase not configured. Add SUPABASE_URL and SUPABASE_KEY to secrets.")
-    
+            # Render history sidebar as fragment
+            render_history_sidebar(supabase, username, user_email)
+        
+        # Main content area
         st.title("💼 Career Coach - CV Analyser")
-    st.markdown("Compare your CV against job listings and get personalized improvement suggestions.")
-    
-    # Initialize session state
-    if 'cv_text' not in st.session_state:
-        st.session_state.cv_text = ""
-    if 'psychometric_assessment' not in st.session_state:
-        st.session_state.psychometric_assessment = PsychometricAssessment()
-    if 'assessment_completed' not in st.session_state:
-        st.session_state.assessment_completed = False
-    if 'job_url' not in st.session_state:
-        st.session_state.job_url = ""
-    if 'job_description' not in st.session_state:
-        st.session_state.job_description = ""
-    if 'show_loaded_analysis' not in st.session_state:
-        st.session_state.show_loaded_analysis = False
+        st.markdown("Compare your CV against job listings and get personalized improvement suggestions.")
+        
+        # Initialize session state
+        if 'cv_text' not in st.session_state:
+            st.session_state.cv_text = ""
+        if 'psychometric_assessment' not in st.session_state:
+            st.session_state.psychometric_assessment = PsychometricAssessment()
+        if 'assessment_completed' not in st.session_state:
+            st.session_state.assessment_completed = False
+        if 'job_url' not in st.session_state:
+            st.session_state.job_url = ""
+        if 'job_description' not in st.session_state:
+            st.session_state.job_description = ""
+        if 'show_loaded_analysis' not in st.session_state:
+            st.session_state.show_loaded_analysis = False
     
     # Check if we should show loaded analysis instead of input forms
     if st.session_state.get('show_loaded_analysis', False) and 'loaded_analysis' in st.session_state and st.session_state.loaded_analysis is not None:
@@ -1316,93 +1603,8 @@ def main():
         
         st.markdown("---")
         
-        # Tabs for different sections
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Skill Gap Analysis", "🎤 Interview Prep", "✍️ CV Improvements", "🏢 Company Intelligence", "📝 Cover Letter"])
-        
-        with tab1:
-            st.markdown("### Missing Hard Skills")
-            missing_skills = gemini_analysis.get('missing_hard_skills', [])
-            if missing_skills:
-                for i, skill in enumerate(missing_skills, 1):
-                    st.markdown(f"**{i}.** {skill}")
-            else:
-                st.info("No missing skills identified - great alignment!")
-        
-        with tab2:
-            st.markdown("### 🎯 Tough Interview Questions")
-            interview_questions = gemini_analysis.get('interview_questions', [])
-            if interview_questions:
-                for i, question in enumerate(interview_questions, 1):
-                    with st.expander(f"Question {i}: {question[:60]}..." if len(question) > 60 else f"Question {i}"):
-                        st.markdown(f"**{question}**")
-            else:
-                st.info("No specific interview questions generated.")
-        
-        with tab3:
-            st.markdown("### ✍️ Power Word Swaps")
-            power_words = gemini_analysis.get('power_word_swaps', [])
-            if power_words:
-                for i, swap in enumerate(power_words, 1):
-                    st.markdown(f"**{i}. {swap.get('original', 'N/A')}** → **{swap.get('replacement', 'N/A')}**")
-                    st.caption(f"💡 {swap.get('context', 'No context provided')}")
-            
-            st.markdown("---")
-            st.markdown("### 📝 CV Bullet Point Improvements")
-            cv_improvements = gemini_analysis.get('cv_improvements', [])
-            if cv_improvements:
-                for i, improvement in enumerate(cv_improvements, 1):
-                    with st.expander(f"Improvement {i}"):
-                        st.markdown("**Current:**")
-                        st.text(improvement.get('current', 'N/A'))
-                        st.markdown("**Improved:**")
-                        st.success(improvement.get('improved', 'N/A'))
-                        st.markdown(f"**Why:** {improvement.get('reason', 'No reason provided')}")
-        
-        with tab4:
-            st.markdown("### 🏢 Company Intelligence")
-            if company_research and "error" not in company_research:
-                st.markdown("#### 💰 Financial Performance")
-                financial = company_research.get('financial_performance', {})
-                if financial:
-                    st.markdown(f"**Market Position:** {financial.get('market_position', 'N/A')}")
-                    st.markdown(f"**Financial Health:** {financial.get('financial_health', 'N/A')}")
-                
-                st.markdown("---")
-                st.markdown("#### 📰 Recent News & Strategic Shifts")
-                recent_news = company_research.get('recent_news', [])
-                if recent_news:
-                    for i, news_item in enumerate(recent_news, 1):
-                        with st.expander(f"**{i}. {news_item.get('headline', 'N/A')}**"):
-                            st.markdown(f"**Summary:** {news_item.get('summary', 'N/A')}")
-                            st.markdown(f"**Significance:** {news_item.get('significance', 'N/A')}")
-                
-                st.markdown("---")
-                st.markdown("#### 🎯 Interview Deep-Dive")
-                deep_dive = company_research.get('interview_deep_dive', [])
-                if deep_dive:
-                    for i, item in enumerate(deep_dive, 1):
-                        st.markdown(f"**{i}.** {item}")
-            else:
-                st.info("Company research not available.")
-        
-        with tab5:
-            st.markdown("### 📝 Personalized Cover Letter")
-            if cover_letter_text:
-                st.text_area(
-                    "Cover Letter Text",
-                    value=cover_letter_text,
-                    height=500,
-                    label_visibility="collapsed",
-                    help="Copy this text to use in your application"
-                )
-                st.download_button(
-                    label="📥 Download Cover Letter",
-                    data=cover_letter_text,
-                    file_name="cover_letter.txt",
-                    mime="text/plain"
-                )
-            else:
-                st.info("Cover letter not available for this analysis.")
+        # Render analysis tabs as fragment
+        render_analysis_tabs(gemini_analysis, company_research, cover_letter_text)
         
         # Button to go back to input forms
         st.markdown("---")
@@ -1526,43 +1728,7 @@ def main():
         )
         st.session_state.job_description = job_description
     
-    # Check if a history item was selected and load it
-    # Get user email from session state (set during login) or database
-    supabase = get_supabase_client()
-    user_email = st.session_state.get('user_email') or get_user_email_from_database(supabase, username)
-    if supabase and 'selected_history_id' in st.session_state and st.session_state.selected_history_id:
-        history_id = st.session_state.selected_history_id
-        history_data = load_analysis_from_supabase(supabase, username, history_id, email=user_email)
-        
-        if not history_data:
-            st.error(f"❌ Failed to load analysis with ID {history_id}. Please check if the record exists and belongs to your account.")
-        elif history_data:
-            # Load the analysis data
-            st.session_state.job_description = history_data.get('job_description', '')
-            st.session_state.job_url = ''  # Clear URL since we're loading from history
-            
-            # Parse and set the analysis data
-            analysis_json = history_data.get('analysis_text', '{}')
-            company_research_json = history_data.get('company_research', '{}')
-            cover_letter_text = history_data.get('cover_letter', '')
-            
-            # Store in session state for display
-            try:
-                st.session_state.loaded_analysis = json.loads(analysis_json) if analysis_json and analysis_json.strip() else {}
-            except json.JSONDecodeError as e:
-                st.session_state.loaded_analysis = {}
-            try:
-                st.session_state.loaded_company_research = json.loads(company_research_json) if company_research_json and company_research_json.strip() else {}
-            except json.JSONDecodeError as e:
-                st.session_state.loaded_company_research = {}
-            st.session_state.loaded_cover_letter = cover_letter_text
-            st.session_state.loaded_history_id = history_id
-            st.session_state.show_loaded_analysis = True  # Flag to show analysis instead of forms
-            
-            # Clear the selected history ID to prevent reloading
-            st.session_state.selected_history_id = None
-            
-            st.rerun()  # Rerun to show the loaded analysis
+    # History loading is now handled by the render_history_sidebar fragment
     
     # Compare and Coach button at the bottom
     st.markdown("---")
@@ -1599,11 +1765,8 @@ def main():
         
         st.markdown("---")
         
-        # Tabs for different sections (reuse the same tab structure)
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Skill Gap Analysis", "🎤 Interview Prep", "✍️ CV Improvements", "🏢 Company Intelligence", "📝 Cover Letter"])
-        
-        # Display all tabs with loaded data (same structure as below)
-        # This will be handled by the same tab code, but we'll need to modify it to check for loaded data
+        # Render analysis tabs as fragment
+        render_analysis_tabs(gemini_analysis, company_research, cover_letter_text)
     
     if st.button("Compare and Coach", type="primary", use_container_width=True):
         # Extract all text
@@ -1630,9 +1793,39 @@ def main():
         has_job_data = bool(final_job_text.strip())
         
         if has_cv and has_job_data:
-            # Call Gemini analysis
-            with st.spinner("🤖 Analysing CV with elite UK Headhunter..."):
-                gemini_analysis = get_gemini_analysis(cv_text_extracted, final_job_text)
+            # Call Gemini analysis with streaming
+            st.markdown("### 🤖 Analysing CV with elite UK Headhunter...")
+            
+            # Collect response while streaming
+            response_text = ""
+            def collect_and_stream():
+                nonlocal response_text
+                for chunk in _stream_gemini_analysis(cv_text_extracted, final_job_text):
+                    response_text += chunk
+                    yield chunk
+            
+            st.write_stream(collect_and_stream())
+            
+            # Parse the collected response
+            gemini_analysis = None
+            try:
+                response_text = response_text.strip()
+                # Try to extract JSON from the response
+                json_match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', response_text, re.DOTALL)
+                if json_match:
+                    response_text = json_match.group(1)
+                else:
+                    # Try to find JSON object directly
+                    json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                    if json_match:
+                        response_text = json_match.group(0)
+                
+                # Parse JSON
+                gemini_analysis = json.loads(response_text)
+            except json.JSONDecodeError as e:
+                gemini_analysis = {"error": f"Failed to parse JSON response: {str(e)}", "raw_response": response_text}
+            except Exception as e:
+                gemini_analysis = {"error": f"Error in get_gemini_analysis: {str(e)}"}
             
             # Check for errors
             if gemini_analysis is None:
@@ -1649,12 +1842,168 @@ def main():
                 
                 # Extract company name and get research
                 company_name = extract_company_name(job_url_text, final_job_text)
-                with st.spinner(f"🔍 Researching {company_name}..."):
-                    company_research = get_company_research(company_name, job_url_text, final_job_text)
+                st.markdown(f"### 🔍 Researching {company_name}...")
+                
+                # Collect response while streaming
+                research_response_text = ""
+                def collect_and_stream_research():
+                    nonlocal research_response_text
+                    api_key = os.getenv('GEMINI_API_KEY') or st.secrets.get('GEMINI_API_KEY', None)
+                    if not api_key:
+                        yield "Error: Google API key not found."
+                        return
+                    
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel('gemini-2.5-flash')
+                    
+                    context_info = ""
+                    if job_url_text:
+                        context_info += f"\nJob URL: {job_url_text}"
+                    if final_job_text:
+                        context_info += f"\nJob Description (first 500 chars): {final_job_text[:500]}"
+                    
+                    prompt = f"""Research the following company and provide comprehensive intelligence for a job interview candidate.
+
+Company Name: {company_name}
+{context_info}
+
+Provide your research in the following JSON format:
+{{
+    "company_name": "{company_name}",
+    "financial_performance": {{
+        "market_position": "<description of current market position>",
+        "financial_health": "<recent financial health, funding rounds, profit trends, or share price if public>",
+        "key_metrics": "<any relevant financial metrics or indicators>"
+    }},
+    "recent_news": [
+        {{
+            "headline": "<headline 1>",
+            "summary": "<brief summary>",
+            "significance": "<why this matters>"
+        }},
+        {{
+            "headline": "<headline 2>",
+            "summary": "<brief summary>",
+            "significance": "<why this matters>"
+        }},
+        {{
+            "headline": "<headline 3>",
+            "summary": "<brief summary>",
+            "significance": "<why this matters>"
+        }}
+    ],
+    "interview_deep_dive": [
+        "<Specific thing 1 to research on company website or LinkedIn>",
+        "<Specific thing 2 to research on company website or LinkedIn>",
+        "<Specific thing 3 to research on company website or LinkedIn>",
+        "<Specific thing 4 to research on company website or LinkedIn>",
+        "<Specific thing 5 to research on company website or LinkedIn>"
+    ]
+}}
+
+IMPORTANT: 
+- Be specific and actionable in your research
+- Focus on recent information (last 12-18 months)
+- For financial performance, estimate based on available public information
+- For interview deep-dive items, be specific about what to look for (e.g., "Check their 'About Us' page for their mission statement and note their core values")
+- Return ONLY valid JSON. Do not include any text before or after the JSON."""
+                    
+                    response = model.generate_content(prompt, stream=True)
+                    for chunk in response:
+                        if chunk.text:
+                            research_response_text += chunk.text
+                            yield chunk.text
+                
+                st.write_stream(collect_and_stream_research())
+                
+                # Parse the collected research response
+                try:
+                    research_response_text = research_response_text.strip()
+                    json_match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', research_response_text, re.DOTALL)
+                    if json_match:
+                        research_response_text = json_match.group(1)
+                    else:
+                        json_match = re.search(r'\{.*\}', research_response_text, re.DOTALL)
+                        if json_match:
+                            research_response_text = json_match.group(0)
+                    
+                    company_research = json.loads(research_response_text)
+                except json.JSONDecodeError as e:
+                    company_research = {"error": f"Failed to parse JSON response: {str(e)}", "raw_response": research_response_text if 'research_response_text' in locals() else "No response"}
+                except Exception as e:
+                    company_research = {"error": f"Error generating company research: {str(e)}"}
                 
                 # Generate cover letter
-                with st.spinner("✍️ Drafting cover letter..."):
-                    cover_letter_text = get_cover_letter(cv_text_extracted, final_job_text, assessment_profile)
+                st.markdown("### ✍️ Drafting cover letter...")
+                
+                # Collect response while streaming
+                cover_letter_text = ""
+                def collect_and_stream_cover_letter():
+                    nonlocal cover_letter_text
+                    api_key = os.getenv('GEMINI_API_KEY') or st.secrets.get('GEMINI_API_KEY', None)
+                    if not api_key:
+                        yield "Error: Google API key not found."
+                        return
+                    
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel('gemini-2.5-flash')
+                    
+                    personality_context = ""
+                    if assessment_profile:
+                        top_traits = [trait for trait, _ in assessment_profile.get('top_traits', [])[:3]]
+                        comm_style = assessment_profile.get('communication_style', '')
+                        work_style = assessment_profile.get('work_style', '')
+                        motivation_style = assessment_profile.get('motivation_style', '')
+                        
+                        personality_context = f"""
+IMPORTANT - Use this personality profile to tailor the language and tone:
+- Top Personality Traits: {', '.join(top_traits)}
+- Communication Style: {comm_style}
+- Work Style: {work_style}
+- Motivation Style: {motivation_style}
+
+Write the cover letter using language that reflects these traits. For example:
+- If communication style is 'direct and concise', use clear, straightforward language
+- If work style is 'collaborative team player', emphasize teamwork and collaboration
+- If motivation style is 'results-driven', focus on achievements and outcomes
+- Match the tone to their personality traits naturally
+"""
+                    else:
+                        personality_context = """
+Use professional, engaging language suitable for a UK job application. 
+Write in a confident but not overly formal tone.
+"""
+                    
+                    prompt = f"""You are an expert UK career coach and cover letter writer. Draft a compelling cover letter for this job application.
+
+CV Text:
+{cv_text_extracted[:2000]}
+
+Job Description:
+{final_job_text[:2000]}
+
+{personality_context}
+
+Requirements:
+1. Write a professional UK-style cover letter (3-4 paragraphs)
+2. Address the letter appropriately (use "Dear Hiring Manager" if no specific name is provided)
+3. Start with a strong opening that shows genuine interest in the role
+4. Highlight 2-3 key experiences from the CV that align with the job requirements
+5. Demonstrate understanding of the company/role by referencing specific aspects from the job description
+6. Close with enthusiasm and a clear call to action
+7. Keep it concise, professional, and impactful
+8. Use UK English spelling and conventions
+9. The language should match the personality profile provided (if available)
+
+Format the cover letter as a proper business letter with appropriate spacing and structure."""
+                    
+                    response = model.generate_content(prompt, stream=True)
+                    for chunk in response:
+                        if chunk.text:
+                            cover_letter_text += chunk.text
+                            yield chunk.text
+                
+                st.write_stream(collect_and_stream_cover_letter())
                 
                 # Extract job title
                 job_title = extract_job_title(final_job_text)
@@ -1674,6 +2023,8 @@ def main():
                         email=user_email
                     )
                     if save_success:
+                        # Clear cache so new analysis appears in history immediately
+                        fetch_user_history.clear(user_email)
                         st.success("💾 Analysis saved to Application History!")
                     else:
                         st.error(f"❌ Failed to save: {error_message}")
@@ -1704,183 +2055,8 @@ def main():
                 
                 st.markdown("---")
                 
-                # Tabs for different sections
-                tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Skill Gap Analysis", "🎤 Interview Prep", "✍️ CV Improvements", "🏢 Company Intelligence", "📝 Cover Letter"])
-                
-                with tab1:
-                    st.markdown("### Missing Hard Skills")
-                    missing_skills = gemini_analysis.get('missing_hard_skills', [])
-                    if missing_skills:
-                        for i, skill in enumerate(missing_skills, 1):
-                            st.markdown(f"**{i}.** {skill}")
-                    else:
-                        st.info("No missing skills identified - great alignment!")
-                    
-                    st.markdown("---")
-                    st.markdown("### 💡 Why This Matters")
-                    st.info("These are the specific technical skills the recruiter will be looking for. Consider highlighting related experience or upskilling in these areas.")
-                
-                with tab2:
-                    st.markdown("### 🎯 Tough Interview Questions")
-                    st.markdown("These questions are designed to probe your skill gaps. Prepare strong, honest answers.")
-                    
-                    interview_questions = gemini_analysis.get('interview_questions', [])
-                    if interview_questions:
-                        for i, question in enumerate(interview_questions, 1):
-                            with st.expander(f"Question {i}: {question[:60]}..." if len(question) > 60 else f"Question {i}"):
-                                st.markdown(f"**{question}**")
-                                st.markdown("💡 *Tip: Prepare a STAR (Situation, Task, Action, Result) response for this question.*")
-                    else:
-                        st.info("No specific interview questions generated.")
-                    
-                    st.markdown("---")
-                    st.markdown("### 🎤 Interview Strategy")
-                    st.success("Use these questions to prepare your responses. Focus on demonstrating growth mindset and willingness to learn missing skills.")
-                
-                with tab3:
-                    st.markdown("### ✍️ Power Word Swaps")
-                    st.markdown("Replace generic buzzwords with high-impact UK action verbs to make your CV stand out.")
-                    
-                    power_words = gemini_analysis.get('power_word_swaps', [])
-                    if power_words:
-                        for i, swap in enumerate(power_words, 1):
-                            st.markdown(f"**{i}. {swap.get('original', 'N/A')}** → **{swap.get('replacement', 'N/A')}**")
-                            st.caption(f"💡 {swap.get('context', 'No context provided')}")
-                            st.markdown("")
-                    else:
-                        st.info("No power word swaps suggested.")
-                    
-                    st.markdown("---")
-                    st.markdown("### 📝 CV Bullet Point Improvements")
-                    st.markdown("Specific, actionable edits to make your CV more aligned with this role.")
-                    
-                    cv_improvements = gemini_analysis.get('cv_improvements', [])
-                    if cv_improvements:
-                        for i, improvement in enumerate(cv_improvements, 1):
-                            with st.expander(f"Improvement {i}"):
-                                st.markdown("**Current:**")
-                                st.text(improvement.get('current', 'N/A'))
-                                st.markdown("**Improved:**")
-                                st.success(improvement.get('improved', 'N/A'))
-                                st.markdown(f"**Why:** {improvement.get('reason', 'No reason provided')}")
-                    else:
-                        st.info("No specific CV improvements suggested.")
-                
-                with tab4:
-                    # Company Intelligence
-                    st.markdown("### 🏢 Company Intelligence")
-                    st.markdown("Research insights to help you stand out in your interview.")
-                    
-                    # Use loaded company research if available, otherwise get new
-                    if 'loaded_company_research' in st.session_state and st.session_state.loaded_company_research:
-                        company_research = st.session_state.loaded_company_research
-                    else:
-                        # Extract company name
-                        company_name = extract_company_name(job_url_text, final_job_text)
-                        
-                        # Get company research
-                        with st.spinner(f"🔍 Researching {company_name}..."):
-                            company_research = get_company_research(company_name, job_url_text, final_job_text)
-                    
-                    if company_research and "error" in company_research:
-                        st.error(f"❌ {company_research['error']}")
-                        if "raw_response" in company_research:
-                            with st.expander("View Raw Response"):
-                                st.text(company_research['raw_response'])
-                    else:
-                        # Financial Performance
-                        st.markdown("#### 💰 Financial Performance")
-                        financial = company_research.get('financial_performance', {})
-                        if financial:
-                            st.markdown(f"**Market Position:** {financial.get('market_position', 'N/A')}")
-                            st.markdown(f"**Financial Health:** {financial.get('financial_health', 'N/A')}")
-                            if financial.get('key_metrics'):
-                                st.markdown(f"**Key Metrics:** {financial.get('key_metrics', 'N/A')}")
-                        else:
-                            st.info("Financial information not available.")
-                        
-                        st.markdown("---")
-                        
-                        # Recent News
-                        st.markdown("#### 📰 Recent News & Strategic Shifts")
-                        recent_news = company_research.get('recent_news', [])
-                        if recent_news:
-                            for i, news_item in enumerate(recent_news, 1):
-                                with st.expander(f"**{i}. {news_item.get('headline', 'N/A')}**"):
-                                    st.markdown(f"**Summary:** {news_item.get('summary', 'N/A')}")
-                                    st.markdown(f"**Significance:** {news_item.get('significance', 'N/A')}")
-                        else:
-                            st.info("No recent news found.")
-                        
-                        st.markdown("---")
-                        
-                        # Interview Deep-Dive
-                        st.markdown("#### 🎯 Interview Deep-Dive")
-                        st.markdown("**5 specific things to research before your interview:**")
-                        st.info("💡 Researching these topics will demonstrate advanced company knowledge and genuine interest.")
-                        
-                        deep_dive = company_research.get('interview_deep_dive', [])
-                        if deep_dive:
-                            for i, item in enumerate(deep_dive, 1):
-                                st.markdown(f"**{i}.** {item}")
-                        else:
-                            st.info("No specific research items suggested.")
-                        
-                        st.markdown("---")
-                        st.success(f"💼 **Pro Tip:** Use this intelligence to ask informed questions during your interview. Show you've done your homework!")
-                
-                with tab5:
-                    # Cover Letter
-                    st.markdown("### 📝 Personalized Cover Letter")
-                    st.markdown("A tailored cover letter for this role, written in your communication style.")
-                    
-                    # Use loaded cover letter if available, otherwise generate new
-                    if 'loaded_cover_letter' in st.session_state and st.session_state.loaded_cover_letter:
-                        cover_letter = st.session_state.loaded_cover_letter
-                    elif has_cv and has_job_data:
-                        # Generate cover letter
-                        with st.spinner("✍️ Drafting your personalized cover letter..."):
-                            cover_letter = get_cover_letter(cv_text_extracted, final_job_text, assessment_profile)
-                    else:
-                        cover_letter = None
-                    
-                    if cover_letter:
-                        if cover_letter.startswith("Error:"):
-                            st.error(cover_letter)
-                        else:
-                            # Display cover letter
-                            st.markdown("---")
-                            st.markdown("#### Your Cover Letter")
-                            
-                            # Show in a text area for easy copying
-                            st.text_area(
-                                "Cover Letter Text",
-                                value=cover_letter,
-                                height=500,
-                                label_visibility="collapsed",
-                                help="Copy this text to use in your application"
-                            )
-                            
-                            # Download button
-                            st.download_button(
-                                label="📥 Download Cover Letter",
-                                data=cover_letter,
-                                file_name="cover_letter.txt",
-                                mime="text/plain"
-                            )
-                            
-                            st.markdown("---")
-                            
-                            # Show personality note if assessment was used
-                            if assessment_profile:
-                                st.info("💡 **Note:** This cover letter has been tailored to match your personality profile and communication style from the psychometric assessment.")
-                            else:
-                                st.info("💡 **Tip:** Complete the psychometric assessment to get a cover letter personalized to your communication style and personality traits.")
-                    else:
-                        if not has_cv:
-                            st.warning("⚠️ Please upload your CV to generate a cover letter.")
-                        if not has_job_data:
-                            st.warning("⚠️ Please provide the job description to generate a cover letter.")
+                # Render analysis tabs as fragment
+                render_analysis_tabs(gemini_analysis, company_research, cover_letter_text)
                 
                 st.markdown("---")
                 if st.button("💾 Save to Profile", type="primary", use_container_width=True, key="save_to_profile"):
@@ -1904,6 +2080,8 @@ def main():
                         )
                         
                         if save_success:
+                            # Clear cache so new analysis appears in history immediately
+                            fetch_user_history.clear(user_email)
                             st.toast("✅ Analysis saved to your profile!", icon="✅")
                             st.success("✅ Analysis saved to your profile!")
                         else:

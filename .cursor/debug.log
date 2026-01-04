@@ -24,3 +24,9 @@
 {"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:18", "message": "PyPDF2 imported successfully (legacy) in cv_analyzer", "data": {"version": "3.0.1"}, "timestamp": 1767526755634}
 {"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:10", "message": "Before importing PyPDF2 in cv_analyzer", "data": {}, "timestamp": 1767545864333}
 {"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:18", "message": "PyPDF2 imported successfully (legacy) in cv_analyzer", "data": {"version": "3.0.1"}, "timestamp": 1767545864334}
+{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:10", "message": "Before importing PyPDF2 in cv_analyzer", "data": {}, "timestamp": 1767555066694}
+{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:18", "message": "PyPDF2 imported successfully (legacy) in cv_analyzer", "data": {"version": "3.0.1"}, "timestamp": 1767555066695}
+{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:10", "message": "Before importing PyPDF2 in cv_analyzer", "data": {}, "timestamp": 1767555485070}
+{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:18", "message": "PyPDF2 imported successfully (legacy) in cv_analyzer", "data": {"version": "3.0.1"}, "timestamp": 1767555485071}
+{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:10", "message": "Before importing PyPDF2 in cv_analyzer", "data": {}, "timestamp": 1767555651975}
+{"sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "cv_analyzer.py:18", "message": "PyPDF2 imported successfully (legacy) in cv_analyzer", "data": {"version": "3.0.1"}, "timestamp": 1767555651976}
